@@ -7,12 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		E93800032F6976D4002F0BC9 /* Secrets.plist in Resources */ = {isa = PBXBuildFile; fileRef = E93800022F6976D4002F0BC9 /* Secrets.plist */; };
+		E93800032F6976D4002F0BC9 /* NearBLE/Config/Secrets.plist in Resources */ = {isa = PBXBuildFile; fileRef = E93800022F6976D4002F0BC9 /* NearBLE/Config/Secrets.plist */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		E93800012F6976D4002F0BC9 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = NearBLE/Config/Base.xcconfig; sourceTree = SOURCE_ROOT; };
-		E93800022F6976D4002F0BC9 /* Secrets.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = NearBLE/Config/Secrets.plist; sourceTree = SOURCE_ROOT; };
+		E93800022F6976D4002F0BC9 /* NearBLE/Config/Secrets.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = NearBLE/Config/Secrets.plist; sourceTree = SOURCE_ROOT; };
 		E99082D82F6976D4002F0BC9 /* NearBLE.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NearBLE.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -40,6 +39,7 @@
 			children = (
 				E99082DA2F6976D4002F0BC9 /* NearBLE */,
 				E99082D92F6976D4002F0BC9 /* Products */,
+				E9A252262F6C0D1400C4F18B /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
@@ -49,6 +49,14 @@
 				E99082D82F6976D4002F0BC9 /* NearBLE.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		E9A252262F6C0D1400C4F18B /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+				E93800022F6976D4002F0BC9 /* NearBLE/Config/Secrets.plist */,
+			);
+			name = "Recovered References";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -88,6 +96,11 @@
 				TargetAttributes = {
 					E99082D72F6976D4002F0BC9 = {
 						CreatedOnToolsVersion = 26.2;
+						SystemCapabilities = {
+							com.apple.InAppPurchase = {
+								enabled = 1;
+							};
+						};
 					};
 				};
 			};
@@ -115,7 +128,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E93800032F6976D4002F0BC9 /* Secrets.plist in Resources */,
+				E93800032F6976D4002F0BC9 /* NearBLE/Config/Secrets.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -261,6 +274,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "NearBLE-AI";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "NearBLE uses Bluetooth to scan for nearby devices.";
 				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "NearBLE uses Bluetooth to discover nearby devices.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -283,13 +297,14 @@
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
 				XROS_DEPLOYMENT_TARGET = 26.2;
 			};
 			name = Debug;
@@ -307,6 +322,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "NearBLE-AI";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "NearBLE uses Bluetooth to scan for nearby devices.";
 				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "NearBLE uses Bluetooth to discover nearby devices.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -329,13 +345,14 @@
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
 				XROS_DEPLOYMENT_TARGET = 26.2;
 			};
 			name = Release;

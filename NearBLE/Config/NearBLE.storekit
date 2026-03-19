@@ -1,0 +1,74 @@
+{
+  "identifier" : "0F7C4F62-0D99-4F94-BF71-553196B8E6A1",
+  "nonRenewingSubscriptions" : [],
+  "products" : [],
+  "settings" : {
+    "_applicationInternalID" : "NearBLE",
+    "_developerTeamID" : "6H46458GVN",
+    "_lastSynchronizedDate" : 0,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "enabled" : false,
+        "name" : "Manage Transactions"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "A1B2C3D4-E5F6-47A1-9182-6F273C93C400",
+      "localizations" : [
+        {
+          "description" : "Unlimited AI analysis for BLE devices, with premium purchase flow testing in Xcode.",
+          "displayName" : "NearBLE Pro",
+          "locale" : "en_US"
+        }
+      ],
+      "name" : "NearBLE Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "1.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "com.codify.nearble.pro.monthly",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Unlock unlimited AI questions and Pro subscription testing for NearBLE.",
+              "displayName" : "NearBLE Pro Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.codify.nearble.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "NearBLE Pro Monthly",
+          "subscriptionGroupID" : "A1B2C3D4-E5F6-47A1-9182-6F273C93C400",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

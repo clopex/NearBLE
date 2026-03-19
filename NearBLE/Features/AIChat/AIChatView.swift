@@ -12,6 +12,8 @@ private struct AIChatMessage: Identifiable {
 }
 
 struct AIChatView: View {
+    @EnvironmentObject private var entitlementStore: AppEntitlementStore
+
     let device: BLEDevice
 
     private let bottomAnchorID = "chat-bottom-anchor"
@@ -20,6 +22,7 @@ struct AIChatView: View {
     @State private var messages: [AIChatMessage] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var isShowingPaywall = false
     @FocusState private var isPromptFocused: Bool
 
     private let aiService = GeminiAIService()
@@ -74,6 +77,11 @@ struct AIChatView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
         .background(Color(.systemGroupedBackground))
+        .fullScreenCover(isPresented: $isShowingPaywall) {
+            NavigationStack {
+                PaywallView(source: .aiLimit)
+            }
+        }
     }
 
     private func scrollToBottom(with proxy: ScrollViewProxy) {
@@ -97,9 +105,30 @@ struct AIChatView: View {
                 aiPill("\(device.rssi) dBm", tint: .cyan)
                 aiPill(device.isConnectable ? "Connectable" : "Ad only", tint: device.isConnectable ? .green : .secondary)
             }
+
+            quotaBanner
         }
         .padding(18)
         .background(cardBackground)
+    }
+
+    private var quotaBanner: some View {
+        HStack(spacing: 10) {
+            Image(systemName: entitlementStore.isPro ? "checkmark.seal.fill" : "hourglass")
+                .foregroundStyle(entitlementStore.isPro ? .green : .orange)
+
+            Text(entitlementStore.usageStatusText)
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(.primary)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(.tertiarySystemFill))
+        )
     }
 
     private var starterCard: some View {
@@ -249,6 +278,13 @@ struct AIChatView: View {
     private func sendPrompt() async {
         let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedPrompt.isEmpty, !isLoading else { return }
+        entitlementStore.refreshDailyUsageIfNeeded()
+
+        guard entitlementStore.canAskAI else {
+            isPromptFocused = false
+            isShowingPaywall = true
+            return
+        }
 
         errorMessage = nil
         isLoading = true
@@ -259,6 +295,7 @@ struct AIChatView: View {
         do {
             let response = try await aiService.askAboutDevice(question: trimmedPrompt, device: device)
             messages.append(AIChatMessage(role: .model, text: response))
+            entitlementStore.recordSuccessfulAIQuestion()
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }

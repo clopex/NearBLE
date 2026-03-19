@@ -58,15 +58,18 @@ final class BLEScannerService: NSObject, ObservableObject {
     @Published private(set) var inspectionSnapshots: [UUID: BLEInspectionSnapshot] = [:]
     @Published private(set) var isScanning = false
 
+    private let historyStore: ScanHistoryStore?
     private var centralManager: CBCentralManager!
     private var cachedDevices: [UUID: BLEDevice] = [:]
     private var peripheralsByID: [UUID: CBPeripheral] = [:]
     private var inspectionBuilders: [UUID: InspectionBuilder] = [:]
     private var pendingPublishTask: Task<Void, Never>?
     private var shouldStartScanningWhenReady = false
+    private var currentSessionStartedAt: Date?
     private var discoverySequence = 0
 
-    override init() {
+    init(historyStore: ScanHistoryStore? = nil) {
+        self.historyStore = historyStore
         super.init()
         centralManager = CBCentralManager(delegate: self, queue: nil)
         updateAvailability(for: CBCentralManager.authorization, state: .unknown)
@@ -103,12 +106,19 @@ final class BLEScannerService: NSObject, ObservableObject {
     }
 
     private func beginScan(resetResults: Bool) {
+        if resetResults, isScanning {
+            finalizeCurrentSession()
+        }
+
         if resetResults {
             pendingPublishTask?.cancel()
             pendingPublishTask = nil
             cachedDevices.removeAll()
             devices.removeAll()
             discoverySequence = 0
+            currentSessionStartedAt = .now
+        } else if currentSessionStartedAt == nil {
+            currentSessionStartedAt = .now
         }
 
         centralManager.stopScan()
@@ -121,9 +131,11 @@ final class BLEScannerService: NSObject, ObservableObject {
     }
 
     func stopScan() {
+        guard isScanning else { return }
         centralManager.stopScan()
         isScanning = false
         shouldStartScanningWhenReady = false
+        finalizeCurrentSession()
     }
 
     func device(with id: UUID) -> BLEDevice? {
@@ -234,8 +246,10 @@ final class BLEScannerService: NSObject, ObservableObject {
 
     private func updateAvailability(for authorization: CBManagerAuthorization, state: CBManagerState) {
         if authorization == .denied || authorization == .restricted {
+            if isScanning {
+                stopScan()
+            }
             availability = .unauthorized
-            isScanning = false
             shouldStartScanningWhenReady = false
             return
         }
@@ -244,24 +258,44 @@ final class BLEScannerService: NSObject, ObservableObject {
         case .poweredOn:
             availability = authorization == .notDetermined ? .permissionRequired : .ready
         case .poweredOff:
+            if isScanning {
+                stopScan()
+            }
             availability = .bluetoothOff
-            isScanning = false
         case .unsupported:
+            if isScanning {
+                stopScan()
+            }
             availability = .unsupported
-            isScanning = false
             shouldStartScanningWhenReady = false
         case .resetting:
+            if isScanning {
+                stopScan()
+            }
             availability = .resetting
-            isScanning = false
         case .unauthorized:
+            if isScanning {
+                stopScan()
+            }
             availability = .unauthorized
-            isScanning = false
             shouldStartScanningWhenReady = false
         case .unknown:
             availability = authorization == .notDetermined ? .permissionRequired : .unknown
         @unknown default:
             availability = .unknown
         }
+    }
+
+    private func finalizeCurrentSession() {
+        guard let currentSessionStartedAt else { return }
+
+        historyStore?.saveSession(
+            startedAt: currentSessionStartedAt,
+            endedAt: .now,
+            devices: Array(cachedDevices.values)
+        )
+
+        self.currentSessionStartedAt = nil
     }
 
     private func inspectionFailureMessage(_ error: Error?, fallback: String) -> String {

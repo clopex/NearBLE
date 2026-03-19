@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DeviceDetailView: View {
     @EnvironmentObject private var bleScanner: BLEScannerService
+    @EnvironmentObject private var favoritesStore: FavoritesStore
 
     let deviceID: UUID
     let initialDevice: BLEDevice
@@ -12,6 +13,10 @@ struct DeviceDetailView: View {
 
     private var inspectionState: BLEInspectionState {
         bleScanner.inspectionState(for: deviceID)
+    }
+
+    private var isFavorite: Bool {
+        favoritesStore.isFavorite(deviceID: deviceID)
     }
 
     var body: some View {
@@ -28,6 +33,16 @@ struct DeviceDetailView: View {
         }
         .navigationTitle(device.displayName)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(action: toggleFavorite) {
+                    Image(systemName: isFavorite ? "star.fill" : "star")
+                        .font(.headline)
+                        .foregroundStyle(isFavorite ? Color.yellow : Color.secondary)
+                }
+                .accessibilityLabel(isFavorite ? "Remove favorite" : "Add favorite")
+            }
+        }
         .background(Color(.systemGroupedBackground))
         .onAppear {
             if bleScanner.isScanning {
@@ -57,6 +72,10 @@ struct DeviceDetailView: View {
                         .foregroundStyle(.secondary)
 
                     HStack(spacing: 8) {
+                        if isFavorite {
+                            detailPill(title: "Favorite", tint: .yellow)
+                        }
+
                         detailPill(
                             title: device.isConnectable ? "Connectable" : "Advertisement only",
                             tint: device.isConnectable ? .green : .secondary
@@ -328,6 +347,10 @@ struct DeviceDetailView: View {
 
     private func disconnectDevice() {
         bleScanner.disconnect(deviceID: deviceID)
+    }
+
+    private func toggleFavorite() {
+        favoritesStore.toggle(deviceID: deviceID)
     }
 
     private func signalDescription(for rssi: Int) -> String {

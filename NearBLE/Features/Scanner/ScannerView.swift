@@ -2,6 +2,9 @@ import SwiftUI
 
 struct ScannerView: View {
     @EnvironmentObject private var bleScanner: BLEScannerService
+    @EnvironmentObject private var scanHistoryStore: ScanHistoryStore
+    @EnvironmentObject private var favoritesStore: FavoritesStore
+    @State private var selectedDevice: BLEDevice?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -11,6 +14,10 @@ struct ScannerView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
+                    if let latestSession = scanHistoryStore.latestSessionSummary, !bleScanner.isScanning {
+                        latestSessionCard(summary: latestSession)
+                    }
+
                     Text("Nearby Devices (\(bleScanner.devices.count))")
                         .font(.headline)
                         .padding(.horizontal, 4)
@@ -37,15 +44,15 @@ struct ScannerView: View {
                     } else {
                         LazyVStack(spacing: 12) {
                             ForEach(bleScanner.devices) { device in
-                                NavigationLink {
-                                    DeviceDetailView(deviceID: device.id, initialDevice: device)
+                                Button {
+                                    openDeviceDetail(for: device)
                                 } label: {
-                                    BLEDeviceRow(device: device)
+                                    BLEDeviceRow(
+                                        device: device,
+                                        isFavorite: favoritesStore.isFavorite(deviceID: device.id)
+                                    )
                                 }
                                 .buttonStyle(.plain)
-                                .simultaneousGesture(TapGesture().onEnded {
-                                    bleScanner.stopScan()
-                                })
                             }
                         }
                     }
@@ -59,6 +66,9 @@ struct ScannerView: View {
         .background(Color(.systemGroupedBackground))
         .refreshable {
             bleScanner.refreshScan()
+        }
+        .navigationDestination(item: $selectedDevice) { device in
+            DeviceDetailView(deviceID: device.id, initialDevice: device)
         }
     }
 
@@ -101,6 +111,12 @@ struct ScannerView: View {
                         systemImage: "dot.radiowaves.up.forward",
                         tint: .green
                     )
+                } else if let latestSession = scanHistoryStore.latestSessionSummary {
+                    statusPill(
+                        title: "Saved \(latestSession.uniqueDeviceCount)",
+                        systemImage: "clock.badge.checkmark",
+                        tint: .mint
+                    )
                 }
             }
         }
@@ -135,10 +151,95 @@ struct ScannerView: View {
                     .fill(tint.opacity(0.18))
             )
     }
+
+    private func latestSessionCard(summary: ScanSessionSummary) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Latest Scan")
+                        .font(.headline)
+
+                    Text(summary.endedAt, style: .relative)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.title3)
+                    .foregroundStyle(.mint)
+            }
+
+            HStack(spacing: 10) {
+                compactMetricPill(
+                    title: "\(summary.uniqueDeviceCount) devices",
+                    systemImage: "sensor.tag.radiowaves.forward",
+                    tint: .cyan
+                )
+
+                compactMetricPill(
+                    title: durationLabel(summary.duration),
+                    systemImage: "timer",
+                    tint: .green
+                )
+            }
+
+            if !summary.topDeviceNames.isEmpty {
+                Text(summary.topDeviceNames.joined(separator: " • "))
+                    .font(.subheadline)
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(Color.primary.opacity(0.05), lineWidth: 1)
+        )
+    }
+
+    private func compactMetricPill(title: String, systemImage: String, tint: Color) -> some View {
+        Label(title, systemImage: systemImage)
+            .font(.caption.weight(.medium))
+            .foregroundStyle(tint)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(tint.opacity(0.12))
+            )
+    }
+
+    private func durationLabel(_ duration: TimeInterval) -> String {
+        let totalSeconds = max(Int(duration.rounded()), 1)
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+
+        if minutes > 0 {
+            return "\(minutes)m \(seconds)s"
+        }
+
+        return "\(seconds)s"
+    }
+
+    private func openDeviceDetail(for device: BLEDevice) {
+        if bleScanner.isScanning {
+            bleScanner.stopScan()
+        }
+
+        selectedDevice = device
+    }
 }
 
 private struct BLEDeviceRow: View {
     let device: BLEDevice
+    let isFavorite: Bool
 
     var body: some View {
         HStack(spacing: 12) {
@@ -164,6 +265,12 @@ private struct BLEDeviceRow: View {
             Spacer(minLength: 16)
 
             VStack(alignment: .trailing, spacing: 6) {
+                if isFavorite {
+                    Image(systemName: "star.fill")
+                        .font(.caption)
+                        .foregroundStyle(.yellow)
+                }
+
                 SignalBarsView(level: device.signalBars)
 
                 Text("\(device.rssi) dBm")
