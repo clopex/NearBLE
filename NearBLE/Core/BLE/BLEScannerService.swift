@@ -54,10 +54,14 @@ final class BLEScannerService: NSObject, ObservableObject {
 
     @Published private(set) var availability: Availability = .unknown
     @Published private(set) var devices: [BLEDevice] = []
+    @Published private(set) var inspectionStates: [UUID: BLEInspectionState] = [:]
+    @Published private(set) var inspectionSnapshots: [UUID: BLEInspectionSnapshot] = [:]
     @Published private(set) var isScanning = false
 
     private var centralManager: CBCentralManager!
     private var cachedDevices: [UUID: BLEDevice] = [:]
+    private var peripheralsByID: [UUID: CBPeripheral] = [:]
+    private var inspectionBuilders: [UUID: InspectionBuilder] = [:]
     private var pendingPublishTask: Task<Void, Never>?
     private var shouldStartScanningWhenReady = false
     private var discoverySequence = 0
@@ -126,6 +130,38 @@ final class BLEScannerService: NSObject, ObservableObject {
         cachedDevices[id]
     }
 
+    func inspectionState(for id: UUID) -> BLEInspectionState {
+        inspectionStates[id] ?? .idle
+    }
+
+    func inspectionSnapshot(for id: UUID) -> BLEInspectionSnapshot? {
+        inspectionSnapshots[id]
+    }
+
+    func connectAndInspect(deviceID: UUID) {
+        guard centralManager.state == .poweredOn else {
+            inspectionStates[deviceID] = .failed("Bluetooth must be on before connecting to a device.")
+            return
+        }
+
+        guard let peripheral = peripheralsByID[deviceID] else {
+            inspectionStates[deviceID] = .failed("This device is no longer in memory. Scan again and retry.")
+            return
+        }
+
+        inspectionStates[deviceID] = .connecting
+        inspectionSnapshots[deviceID] = nil
+        inspectionBuilders[deviceID] = InspectionBuilder()
+        peripheral.delegate = self
+        centralManager.connect(peripheral)
+    }
+
+    func disconnect(deviceID: UUID) {
+        guard let peripheral = peripheralsByID[deviceID] else { return }
+        centralManager.cancelPeripheralConnection(peripheral)
+        inspectionStates[deviceID] = .idle
+    }
+
     private func upsertDevice(
         peripheral: CBPeripheral,
         advertisementData: [String: Any],
@@ -149,6 +185,7 @@ final class BLEScannerService: NSObject, ObservableObject {
             isConnectable: isConnectable
         )
 
+        peripheralsByID[peripheral.identifier] = peripheral
         cachedDevices[peripheral.identifier] = device
         schedulePublish()
     }
@@ -169,6 +206,22 @@ final class BLEScannerService: NSObject, ObservableObject {
                 guard let self else { return }
                 self.pendingPublishTask = nil
                 self.devices = self.cachedDevices.values.sorted { lhs, rhs in
+                    if lhs.rssi == rhs.rssi {
+                        if lhs.discoveryOrder == rhs.discoveryOrder {
+                            return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+                        }
+
+                        return lhs.discoveryOrder < rhs.discoveryOrder
+                    }
+
+                    if lhs.signalBars == rhs.signalBars {
+                        return lhs.rssi > rhs.rssi
+                    }
+
+                    if lhs.signalBars != rhs.signalBars {
+                        return lhs.signalBars > rhs.signalBars
+                    }
+
                     if lhs.discoveryOrder == rhs.discoveryOrder {
                         return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
                     }
@@ -210,6 +263,18 @@ final class BLEScannerService: NSObject, ObservableObject {
             availability = .unknown
         }
     }
+
+    private func inspectionFailureMessage(_ error: Error?, fallback: String) -> String {
+        if let localizedError = error as? LocalizedError, let description = localizedError.errorDescription, !description.isEmpty {
+            return description
+        }
+
+        if let error {
+            return error.localizedDescription
+        }
+
+        return fallback
+    }
 }
 
 extension BLEScannerService: CBCentralManagerDelegate {
@@ -236,10 +301,139 @@ extension BLEScannerService: CBCentralManagerDelegate {
             self?.upsertDevice(peripheral: peripheral, advertisementData: advertisementData, rssi: RSSI)
         }
     }
+
+    nonisolated func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            peripheral.delegate = self
+            self.inspectionStates[peripheral.identifier] = .discoveringServices
+            self.inspectionBuilders[peripheral.identifier] = InspectionBuilder()
+            peripheral.discoverServices(nil)
+        }
+    }
+
+    nonisolated func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: (any Error)?) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.inspectionStates[peripheral.identifier] = .failed(
+                self.inspectionFailureMessage(error, fallback: "Unable to connect to this peripheral.")
+            )
+        }
+    }
+
+    nonisolated func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: (any Error)?) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            if let error {
+                self.inspectionStates[peripheral.identifier] = .failed(
+                    self.inspectionFailureMessage(error, fallback: "The peripheral disconnected unexpectedly.")
+                )
+            } else if self.inspectionState(for: peripheral.identifier) != .ready {
+                self.inspectionStates[peripheral.identifier] = .idle
+            }
+        }
+    }
+}
+
+extension BLEScannerService: CBPeripheralDelegate {
+    nonisolated func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: (any Error)?) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            if let error {
+                self.inspectionStates[peripheral.identifier] = .failed(
+                    self.inspectionFailureMessage(error, fallback: "Failed to discover services.")
+                )
+                return
+            }
+
+            let services = peripheral.services ?? []
+            if services.isEmpty {
+                self.inspectionSnapshots[peripheral.identifier] = BLEInspectionSnapshot(services: [])
+                self.inspectionStates[peripheral.identifier] = .ready
+                return
+            }
+
+            self.inspectionStates[peripheral.identifier] = .discoveringCharacteristics
+            self.inspectionBuilders[peripheral.identifier] = InspectionBuilder(
+                pendingServiceIDs: Set(services.map(\.uuid.uuidString)),
+                services: [:]
+            )
+
+            for service in services {
+                peripheral.discoverCharacteristics(nil, for: service)
+            }
+        }
+    }
+
+    nonisolated func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: (any Error)?) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            if let error {
+                self.inspectionStates[peripheral.identifier] = .failed(
+                    self.inspectionFailureMessage(error, fallback: "Failed to discover characteristics.")
+                )
+                return
+            }
+
+            let serviceUUID = service.uuid.uuidString
+            let characteristics = (service.characteristics ?? []).map { characteristic in
+                BLEInspectionSnapshot.Characteristic(
+                    id: characteristic.uuid.uuidString,
+                    uuid: characteristic.uuid.uuidString,
+                    properties: characteristic.properties.displayNames
+                )
+            }
+
+            var builder = self.inspectionBuilders[peripheral.identifier] ?? InspectionBuilder()
+            builder.pendingServiceIDs.remove(serviceUUID)
+            builder.services[serviceUUID] = BLEInspectionSnapshot.Service(
+                id: serviceUUID,
+                uuid: serviceUUID,
+                isPrimary: service.isPrimary,
+                characteristics: characteristics
+            )
+            self.inspectionBuilders[peripheral.identifier] = builder
+
+            guard builder.pendingServiceIDs.isEmpty else { return }
+
+            let snapshot = BLEInspectionSnapshot(
+                services: builder.services.values.sorted { $0.uuid < $1.uuid }
+            )
+            self.inspectionSnapshots[peripheral.identifier] = snapshot
+            self.inspectionStates[peripheral.identifier] = .ready
+        }
+    }
+}
+
+private extension BLEScannerService {
+    struct InspectionBuilder {
+        var pendingServiceIDs: Set<String> = []
+        var services: [String: BLEInspectionSnapshot.Service] = [:]
+    }
 }
 
 private extension Data {
     var hexString: String {
         map { String(format: "%02X", $0) }.joined(separator: " ")
+    }
+}
+
+private extension CBCharacteristicProperties {
+    var displayNames: [String] {
+        var names: [String] = []
+
+        if contains(.read) { names.append("Read") }
+        if contains(.write) { names.append("Write") }
+        if contains(.writeWithoutResponse) { names.append("Write No Response") }
+        if contains(.notify) { names.append("Notify") }
+        if contains(.indicate) { names.append("Indicate") }
+        if contains(.broadcast) { names.append("Broadcast") }
+        if contains(.authenticatedSignedWrites) { names.append("Signed Write") }
+        if contains(.extendedProperties) { names.append("Extended") }
+
+        return names.isEmpty ? ["No Flags"] : names
     }
 }

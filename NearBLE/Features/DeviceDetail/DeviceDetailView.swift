@@ -10,11 +10,16 @@ struct DeviceDetailView: View {
         bleScanner.device(with: deviceID) ?? initialDevice
     }
 
+    private var inspectionState: BLEInspectionState {
+        bleScanner.inspectionState(for: deviceID)
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 summaryCard
                 askAICard
+                inspectionCard
                 signalCard
                 observedDataCard
                 identifiersCard
@@ -73,35 +78,143 @@ struct DeviceDetailView: View {
     }
 
     private var askAICard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "sparkles")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(.cyan)
-                    .frame(width: 42, height: 42)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(Color.cyan.opacity(0.12))
-                    )
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Ask AI")
-                        .font(.headline)
-
-                    Text("Get a quick explanation of what this BLE advertisement data might mean using Gemini.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
+        VStack(spacing: 18) {
             NavigationLink {
                 AIChatView(device: device)
             } label: {
-                Label("Ask AI", systemImage: "arrow.up.right.circle.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
+                VStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.cyan, Color.accentColor],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 92, height: 92)
+                            .shadow(color: Color.cyan.opacity(0.28), radius: 20, y: 10)
+
+                        Circle()
+                            .stroke(Color.white.opacity(0.28), lineWidth: 1)
+                            .frame(width: 92, height: 92)
+
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 34, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+
+                    VStack(spacing: 4) {
+                        Text("Ask AI")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+
+                        Text("Explain this BLE device")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 6)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.plain)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
+        .padding(.horizontal, 20)
+        .background(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.cyan.opacity(0.1),
+                            Color.accentColor.opacity(0.06)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(Color.cyan.opacity(0.18), lineWidth: 1)
+        )
+    }
+
+    private var inspectionCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Connect & Inspect")
+                .font(.headline)
+
+            Text(inspectionState.title)
+                .font(.subheadline.weight(.semibold))
+
+            Text(inspectionState.message)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 12) {
+                Button("Connect & Inspect", action: connectAndInspect)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!device.isConnectable || !inspectionState.canStartInspection)
+
+                Button("Disconnect", action: disconnectDevice)
+                    .buttonStyle(.bordered)
+                    .disabled(!inspectionState.canDisconnect)
+            }
+
+            if let snapshot = bleScanner.inspectionSnapshot(for: deviceID) {
+                if snapshot.services.isEmpty {
+                    Text("This peripheral did not expose any services.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(snapshot.services) { service in
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Text(service.uuid)
+                                    .font(.subheadline.monospaced())
+
+                                Spacer(minLength: 12)
+
+                                if service.isPrimary {
+                                    detailPill(title: "Primary", tint: .green)
+                                }
+                            }
+
+                            if service.characteristics.isEmpty {
+                                Text("No characteristics exposed.")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                ForEach(service.characteristics) { characteristic in
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text(characteristic.uuid)
+                                            .font(.footnote.monospaced())
+                                            .foregroundStyle(.primary)
+
+                                        Text(characteristic.properties.joined(separator: " • "))
+                                            .font(.footnote)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .padding(12)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                            .fill(Color(.tertiarySystemFill))
+                                    )
+                                }
+                            }
+                        }
+                        .padding(14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .fill(Color(.tertiarySystemBackground))
+                        )
+                    }
+                }
+            }
         }
         .padding(20)
         .background(cardBackground)
@@ -207,6 +320,14 @@ struct DeviceDetailView: View {
                 Capsule(style: .continuous)
                     .fill(tint.opacity(0.12))
             )
+    }
+
+    private func connectAndInspect() {
+        bleScanner.connectAndInspect(deviceID: deviceID)
+    }
+
+    private func disconnectDevice() {
+        bleScanner.disconnect(deviceID: deviceID)
     }
 
     private func signalDescription(for rssi: Int) -> String {

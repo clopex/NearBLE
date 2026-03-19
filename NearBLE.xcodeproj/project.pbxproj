@@ -6,7 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		E93800032F6976D4002F0BC9 /* Secrets.plist in Resources */ = {isa = PBXBuildFile; fileRef = E93800022F6976D4002F0BC9 /* Secrets.plist */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
+		E93800012F6976D4002F0BC9 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = NearBLE/Config/Base.xcconfig; sourceTree = SOURCE_ROOT; };
+		E93800022F6976D4002F0BC9 /* Secrets.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = NearBLE/Config/Secrets.plist; sourceTree = SOURCE_ROOT; };
 		E99082D82F6976D4002F0BC9 /* NearBLE.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NearBLE.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -109,6 +115,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E93800032F6976D4002F0BC9 /* Secrets.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
