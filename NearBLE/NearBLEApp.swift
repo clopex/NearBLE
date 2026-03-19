@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct NearBLEApp: App {
+    @StateObject private var bleScanner = BLEScannerService()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(bleScanner)
         }
     }
 }
