@@ -6,10 +6,15 @@ struct BLEDevice: Identifiable, Hashable {
     var name: String?
     var localName: String?
     var rssi: Int
+    var strongestRSSISeen: Int? = nil
     var lastSeenAt: Date
     var manufacturerDataHex: String?
     var advertisedServices: [String]
     var isConnectable: Bool
+
+    var stableSortRSSI: Int {
+        max(rssi, strongestRSSISeen ?? rssi)
+    }
 
     var displayName: String {
         if let name, !name.isEmpty {
@@ -55,15 +60,15 @@ struct BLEDevice: Identifiable, Hashable {
     }
 
     var signalBars: Int {
-        if rssi >= -55 {
+        if stableSortRSSI >= -55 {
             return 4
         }
 
-        if rssi >= -67 {
+        if stableSortRSSI >= -67 {
             return 3
         }
 
-        if rssi >= -80 {
+        if stableSortRSSI >= -80 {
             return 2
         }
 

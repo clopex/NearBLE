@@ -2,10 +2,14 @@ import SwiftUI
 
 struct DeviceDetailView: View {
     @EnvironmentObject private var bleScanner: BLEScannerService
+    @EnvironmentObject private var entitlementStore: AppEntitlementStore
     @EnvironmentObject private var favoritesStore: FavoritesStore
 
     let deviceID: UUID
     let initialDevice: BLEDevice
+
+    @State private var isShowingAIChat = false
+    @State private var isShowingPaywall = false
 
     private var device: BLEDevice {
         bleScanner.device(with: deviceID) ?? initialDevice
@@ -44,6 +48,14 @@ struct DeviceDetailView: View {
             }
         }
         .background(Color(.systemGroupedBackground))
+        .navigationDestination(isPresented: $isShowingAIChat) {
+            AIChatView(device: device)
+        }
+        .fullScreenCover(isPresented: $isShowingPaywall) {
+            NavigationStack {
+                PaywallView(source: .aiLimit)
+            }
+        }
         .onAppear {
             if bleScanner.isScanning {
                 bleScanner.stopScan()
@@ -98,9 +110,7 @@ struct DeviceDetailView: View {
 
     private var askAICard: some View {
         VStack(spacing: 18) {
-            NavigationLink {
-                AIChatView(device: device)
-            } label: {
+            Button(action: openAIFlow) {
                 VStack(spacing: 12) {
                     ZStack {
                         Circle()
@@ -121,6 +131,15 @@ struct DeviceDetailView: View {
                         Image(systemName: "sparkles")
                             .font(.system(size: 34, weight: .bold))
                             .foregroundStyle(.white)
+
+                        if !entitlementStore.isPro {
+                            Image(systemName: "lock.fill")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.white)
+                                .padding(8)
+                                .background(Circle().fill(Color.black.opacity(0.22)))
+                                .offset(x: 28, y: 28)
+                        }
                     }
 
                     VStack(spacing: 4) {
@@ -128,7 +147,7 @@ struct DeviceDetailView: View {
                             .font(.headline)
                             .foregroundStyle(.primary)
 
-                        Text("Explain this BLE device")
+                        Text(entitlementStore.isPro ? "Explain this BLE device" : "Pro feature")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -351,6 +370,14 @@ struct DeviceDetailView: View {
 
     private func toggleFavorite() {
         favoritesStore.toggle(deviceID: deviceID)
+    }
+
+    private func openAIFlow() {
+        if entitlementStore.isPro {
+            isShowingAIChat = true
+        } else {
+            isShowingPaywall = true
+        }
     }
 
     private func signalDescription(for rssi: Int) -> String {

@@ -1,74 +1,79 @@
 {
-  "identifier" : "0F7C4F62-0D99-4F94-BF71-553196B8E6A1",
-  "nonRenewingSubscriptions" : [],
-  "products" : [],
-  "settings" : {
-    "_applicationInternalID" : "NearBLE",
-    "_developerTeamID" : "6H46458GVN",
-    "_lastSynchronizedDate" : 0,
-    "_locale" : "en_US",
-    "_storefront" : "USA",
-    "_storeKitErrors" : [
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
       {
-        "enabled" : false,
-        "name" : "Load Products"
-      },
-      {
-        "enabled" : false,
-        "name" : "Purchase"
-      },
-      {
-        "enabled" : false,
-        "name" : "Verification"
-      },
-      {
-        "enabled" : false,
-        "name" : "Subscription Status"
-      },
-      {
-        "enabled" : false,
-        "name" : "Manage Transactions"
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
       }
     ]
   },
+  "identifier" : "BB04ED55",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6760899688",
+    "_askToBuyEnabled" : false,
+    "_billingGracePeriodEnabled" : false,
+    "_billingIssuesEnabled" : false,
+    "_developerTeamID" : "6H46458GVN",
+    "_disableDialogs" : false,
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 795817292.06665206,
+    "_locale" : "en_US",
+    "_renewalBillingIssuesEnabled" : false,
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ],
+    "_timeRate" : 0
+  },
   "subscriptionGroups" : [
     {
-      "id" : "A1B2C3D4-E5F6-47A1-9182-6F273C93C400",
+      "id" : "21988065",
       "localizations" : [
-        {
-          "description" : "Unlimited AI analysis for BLE devices, with premium purchase flow testing in Xcode.",
-          "displayName" : "NearBLE Pro",
-          "locale" : "en_US"
-        }
+
       ],
       "name" : "NearBLE Pro",
       "subscriptions" : [
         {
-          "adHocOffers" : [],
-          "codeOffers" : [],
-          "displayPrice" : "1.99",
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "0.99",
           "familyShareable" : false,
           "groupNumber" : 1,
-          "internalID" : "com.codify.nearble.pro.monthly",
+          "internalID" : "6760899518",
           "introductoryOffer" : null,
           "localizations" : [
             {
-              "description" : "Unlock unlimited AI questions and Pro subscription testing for NearBLE.",
-              "displayName" : "NearBLE Pro Monthly",
+              "description" : "Unlimited AI analysis and premium BLE features",
+              "displayName" : "NearBLE Pro",
               "locale" : "en_US"
             }
           ],
           "productID" : "com.codify.nearble.pro.monthly",
           "recurringSubscriptionPeriod" : "P1M",
           "referenceName" : "NearBLE Pro Monthly",
-          "subscriptionGroupID" : "A1B2C3D4-E5F6-47A1-9182-6F273C93C400",
-          "type" : "RecurringSubscription"
+          "subscriptionGroupID" : "21988065",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
         }
       ]
     }
   ],
   "version" : {
-    "major" : 3,
+    "major" : 4,
     "minor" : 0
   }
 }

@@ -39,7 +39,7 @@ struct HistoryView: View {
     }
 
     private var groupedSessions: [HistoryDaySection] {
-        let snapshots = sessions.map(HistorySessionSnapshot.init)
+        let snapshots = sessions.map { HistorySessionSnapshot(session: $0) }
         let grouped = Dictionary(grouping: snapshots) { session in
             Calendar.current.startOfDay(for: session.startedAt)
         }
@@ -165,3 +165,4 @@ private struct HistoryDaySection: Identifiable {
 
     var id: Date { date }
 }
+

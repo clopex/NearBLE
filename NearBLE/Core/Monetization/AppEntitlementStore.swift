@@ -60,7 +60,7 @@ final class AppEntitlementStore: ObservableObject {
     }
 
     var canAskAI: Bool {
-        isPro || remainingFreeQuestions > 0
+        isPro
     }
 
     var usageStatusText: String {
@@ -68,11 +68,11 @@ final class AppEntitlementStore: ObservableObject {
             return "Unlimited AI questions"
         }
 
-        return "\(usedFreeQuestionsToday)/\(freeQuestionLimit) free AI questions used today"
+        return "Ask AI is available only on Pro"
     }
 
     var productPriceText: String {
-        proProduct?.displayPrice ?? "$1.99 / month"
+        proProduct?.displayPrice ?? "$0.99"
     }
 
     var canStartPurchase: Bool {
@@ -91,12 +91,7 @@ final class AppEntitlementStore: ObservableObject {
     }
 
     func recordSuccessfulAIQuestion() {
-        refreshDailyUsageIfNeeded()
-        guard !isPro else { return }
-
-        let updatedCount = min(freeQuestionLimit, usedFreeQuestionsToday + 1)
-        usedFreeQuestionsToday = updatedCount
-        defaults.set(updatedCount, forKey: usageCountKey)
+        guard isPro else { return }
     }
 
     func loadProducts() async {

@@ -82,6 +82,11 @@ struct AIChatView: View {
                 PaywallView(source: .aiLimit)
             }
         }
+        .task {
+            if !entitlementStore.isPro {
+                isShowingPaywall = true
+            }
+        }
     }
 
     private func scrollToBottom(with proxy: ScrollViewProxy) {

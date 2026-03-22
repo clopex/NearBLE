@@ -179,11 +179,13 @@ final class BLEScannerService: NSObject, ObservableObject {
         advertisementData: [String: Any],
         rssi: NSNumber
     ) {
+        let previousDevice = cachedDevices[peripheral.identifier]
         let localName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
         let manufacturerData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data
         let serviceUUIDs = (advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID]) ?? []
         let isConnectable = advertisementData[CBAdvertisementDataIsConnectable] as? Bool ?? false
-        let discoveryOrder = cachedDevices[peripheral.identifier]?.discoveryOrder ?? nextDiscoveryOrder()
+        let discoveryOrder = previousDevice?.discoveryOrder ?? nextDiscoveryOrder()
+        let strongestRSSISeen = max(previousDevice?.strongestRSSISeen ?? previousDevice?.rssi ?? rssi.intValue, rssi.intValue)
 
         let device = BLEDevice(
             id: peripheral.identifier,
@@ -191,6 +193,7 @@ final class BLEScannerService: NSObject, ObservableObject {
             name: peripheral.name,
             localName: localName,
             rssi: rssi.intValue,
+            strongestRSSISeen: strongestRSSISeen,
             lastSeenAt: .now,
             manufacturerDataHex: manufacturerData?.hexString,
             advertisedServices: serviceUUIDs.map(\.uuidString),
@@ -212,13 +215,13 @@ final class BLEScannerService: NSObject, ObservableObject {
         guard pendingPublishTask == nil else { return }
 
         pendingPublishTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 250_000_000)
+            try? await Task.sleep(nanoseconds: 450_000_000)
 
             await MainActor.run {
                 guard let self else { return }
                 self.pendingPublishTask = nil
                 self.devices = self.cachedDevices.values.sorted { lhs, rhs in
-                    if lhs.rssi == rhs.rssi {
+                    if lhs.stableSortRSSI == rhs.stableSortRSSI {
                         if lhs.discoveryOrder == rhs.discoveryOrder {
                             return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
                         }
@@ -226,19 +229,7 @@ final class BLEScannerService: NSObject, ObservableObject {
                         return lhs.discoveryOrder < rhs.discoveryOrder
                     }
 
-                    if lhs.signalBars == rhs.signalBars {
-                        return lhs.rssi > rhs.rssi
-                    }
-
-                    if lhs.signalBars != rhs.signalBars {
-                        return lhs.signalBars > rhs.signalBars
-                    }
-
-                    if lhs.discoveryOrder == rhs.discoveryOrder {
-                        return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
-                    }
-
-                    return lhs.discoveryOrder < rhs.discoveryOrder
+                    return lhs.stableSortRSSI > rhs.stableSortRSSI
                 }
             }
         }

@@ -14,7 +14,7 @@ struct SettingsView: View {
 
             Section("AI") {
                 LabeledContent("Tier", value: entitlementStore.tier.title)
-                LabeledContent("Usage Today", value: entitlementStore.isPro ? "Unlimited" : "\(entitlementStore.usedFreeQuestionsToday)/\(entitlementStore.freeQuestionLimit)")
+                LabeledContent("Usage Today", value: entitlementStore.isPro ? "Unlimited" : "Locked on Free")
             }
 
             Section("Pro") {
