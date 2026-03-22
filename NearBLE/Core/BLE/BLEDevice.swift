@@ -12,6 +12,16 @@ struct BLEDevice: Identifiable, Hashable {
     var advertisedServices: [String]
     var isConnectable: Bool
 
+    var normalizedDisplayName: String? {
+        let trimmedName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedName.isEmpty, trimmedName != "Unknown Device" else {
+            return nil
+        }
+
+        return trimmedName.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+    }
+
     var stableSortRSSI: Int {
         max(rssi, strongestRSSISeen ?? rssi)
     }
@@ -73,5 +83,32 @@ struct BLEDevice: Identifiable, Hashable {
         }
 
         return 1
+    }
+
+    func mergedForDisplay(with other: BLEDevice) -> BLEDevice {
+        BLEDevice(
+            id: stableSortRSSI >= other.stableSortRSSI ? id : other.id,
+            discoveryOrder: min(discoveryOrder, other.discoveryOrder),
+            name: preferredNonEmpty(name, other.name),
+            localName: preferredNonEmpty(localName, other.localName),
+            rssi: max(rssi, other.rssi),
+            strongestRSSISeen: max(strongestRSSISeen ?? rssi, other.strongestRSSISeen ?? other.rssi),
+            lastSeenAt: max(lastSeenAt, other.lastSeenAt),
+            manufacturerDataHex: preferredNonEmpty(manufacturerDataHex, other.manufacturerDataHex),
+            advertisedServices: Array(Set(advertisedServices + other.advertisedServices)).sorted(),
+            isConnectable: isConnectable || other.isConnectable
+        )
+    }
+
+    private func preferredNonEmpty(_ lhs: String?, _ rhs: String?) -> String? {
+        if let lhs, !lhs.isEmpty {
+            return lhs
+        }
+
+        if let rhs, !rhs.isEmpty {
+            return rhs
+        }
+
+        return nil
     }
 }

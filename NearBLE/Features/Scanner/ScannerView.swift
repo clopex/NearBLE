@@ -10,7 +10,7 @@ struct ScannerView: View {
         VStack(alignment: .leading, spacing: 16) {
             scannerHeader
                 .padding(.horizontal, 20)
-                .padding(.top, 12)
+                .padding(.top, 6)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
@@ -18,29 +18,14 @@ struct ScannerView: View {
                         latestSessionCard(summary: latestSession)
                     }
 
-                    Text("Nearby Devices (\(bleScanner.devices.count))")
-                        .font(.headline)
-                        .padding(.horizontal, 4)
+                    if shouldShowDevicesSectionTitle {
+                        Text("Nearby Devices (\(bleScanner.devices.count))")
+                            .font(.headline)
+                            .padding(.horizontal, 4)
+                    }
 
                     if bleScanner.devices.isEmpty {
-                        ContentUnavailableView {
-                            Label(
-                                bleScanner.isScanning ? "Scanning…" : "No Devices Yet",
-                                systemImage: bleScanner.isScanning ? "wave.3.right.circle" : "dot.radiowaves.left.and.right"
-                            )
-                        } description: {
-                            Text(
-                                bleScanner.isScanning
-                                    ? "NearBLE is listening for BLE advertisements. Move around or wait a moment for devices to appear."
-                                    : "Tap the scanner button to begin discovering nearby BLE devices."
-                            )
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 40)
-                        .background(
-                            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                                .fill(Color(.secondarySystemBackground))
-                        )
+                        emptyStateCard
                     } else {
                         LazyVStack(spacing: 12) {
                             ForEach(bleScanner.devices) { device in
@@ -73,6 +58,16 @@ struct ScannerView: View {
     }
 
     private var scannerHeader: some View {
+        Group {
+            if usesRadarHeader {
+                activeScannerHeader
+            } else {
+                stateStatusHeader
+            }
+        }
+    }
+
+    private var activeScannerHeader: some View {
         VStack(alignment: .leading, spacing: 18) {
             ZStack {
                 RadarScopeView(devices: Array(bleScanner.devices.prefix(12)), isScanning: bleScanner.isScanning)
@@ -121,23 +116,82 @@ struct ScannerView: View {
             }
         }
         .padding(18)
-        .background(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.05, green: 0.11, blue: 0.18),
-                            Color(red: 0.02, green: 0.07, blue: 0.13)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+        .background(scannerHeaderBackground)
+    }
+
+    private var stateStatusHeader: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 14) {
+                Image(systemName: availabilitySymbol)
+                    .font(.title2)
+                    .foregroundStyle(.white)
+                    .frame(width: 48, height: 48)
+                    .background(
+                        Circle()
+                            .fill(Color.white.opacity(0.08))
                     )
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(bleScanner.availability.title)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.white)
+
+                    Text(bleScanner.availability.message)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.white.opacity(0.72))
+                }
+            }
+
+            HStack(spacing: 12) {
+                statusPill(
+                    title: "\(bleScanner.devices.count) devices",
+                    systemImage: "sensor.tag.radiowaves.forward",
+                    tint: .cyan
                 )
+
+                if let latestSession = scanHistoryStore.latestSessionSummary {
+                    statusPill(
+                        title: "Last \(latestSession.uniqueDeviceCount)",
+                        systemImage: "clock.badge.checkmark",
+                        tint: .mint
+                    )
+                }
+            }
+        }
+        .padding(18)
+        .background(scannerHeaderBackground)
+    }
+
+    private var emptyStateCard: some View {
+        ContentUnavailableView {
+            Label(emptyStateTitle, systemImage: emptyStateSymbol)
+        } description: {
+            Text(emptyStateMessage)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(Color.cyan.opacity(0.12), lineWidth: 1)
-        )
+    }
+
+    private var scannerHeaderBackground: some View {
+        RoundedRectangle(cornerRadius: 28, style: .continuous)
+            .fill(
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.05, green: 0.11, blue: 0.18),
+                        Color(red: 0.02, green: 0.07, blue: 0.13)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .stroke(Color.cyan.opacity(0.12), lineWidth: 1)
+            )
     }
 
     private func statusPill(title: String, systemImage: String, tint: Color) -> some View {
@@ -235,6 +289,83 @@ struct ScannerView: View {
 
         selectedDevice = device
     }
+
+    private var usesRadarHeader: Bool {
+        switch bleScanner.availability {
+        case .ready, .permissionRequired, .unknown:
+            return true
+        case .bluetoothOff, .unauthorized, .unsupported, .resetting:
+            return bleScanner.isScanning
+        }
+    }
+
+    private var shouldShowDevicesSectionTitle: Bool {
+        !bleScanner.devices.isEmpty || usesRadarHeader
+    }
+
+    private var emptyStateTitle: String {
+        switch bleScanner.availability {
+        case .ready, .permissionRequired, .unknown:
+            return bleScanner.isScanning ? "Scanning…" : "No Devices Yet"
+        case .bluetoothOff:
+            return "Bluetooth Is Off"
+        case .unauthorized:
+            return "Bluetooth Access Needed"
+        case .unsupported:
+            return "Bluetooth Unsupported"
+        case .resetting:
+            return "Bluetooth Resetting"
+        }
+    }
+
+    private var emptyStateMessage: String {
+        switch bleScanner.availability {
+        case .ready:
+            return bleScanner.isScanning
+                ? "NearBLE is listening for BLE advertisements. Move around or wait a moment for devices to appear."
+                : "Tap the scanner button to begin discovering nearby BLE devices."
+        case .permissionRequired:
+            return "Tap the scanner button to request Bluetooth access and start discovering nearby BLE devices."
+        case .unknown:
+            return "NearBLE is waiting for CoreBluetooth to finish initializing."
+        case .bluetoothOff, .unauthorized, .unsupported, .resetting:
+            return bleScanner.availability.message
+        }
+    }
+
+    private var emptyStateSymbol: String {
+        switch bleScanner.availability {
+        case .ready, .permissionRequired, .unknown:
+            return bleScanner.isScanning ? "wave.3.right.circle" : "dot.radiowaves.left.and.right"
+        case .bluetoothOff:
+            return "bolt.slash.circle"
+        case .unauthorized:
+            return "lock.circle"
+        case .unsupported:
+            return "antenna.radiowaves.left.and.right.slash"
+        case .resetting:
+            return "arrow.triangle.2.circlepath.circle"
+        }
+    }
+
+    private var availabilitySymbol: String {
+        switch bleScanner.availability {
+        case .unknown:
+            return "dot.radiowaves.left.and.right"
+        case .permissionRequired:
+            return "bolt.horizontal.circle"
+        case .ready:
+            return "dot.radiowaves.left.and.right"
+        case .bluetoothOff:
+            return "bolt.slash.circle"
+        case .unauthorized:
+            return "lock.circle"
+        case .unsupported:
+            return "antenna.radiowaves.left.and.right.slash"
+        case .resetting:
+            return "arrow.triangle.2.circlepath.circle"
+        }
+    }
 }
 
 private struct BLEDeviceRow: View {
@@ -311,7 +442,8 @@ private struct RadarScopeView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let size = min(geometry.size.width, geometry.size.height)
+            let rawSize = min(geometry.size.width, geometry.size.height)
+            let size = rawSize.isFinite ? max(0, rawSize) : 0
 
             ZStack {
                 Circle()
@@ -390,7 +522,7 @@ private struct RadarScopeView: View {
         let angle = Double(seed % 360) * .pi / 180
         let jitter = CGFloat((seed / 360) % 12) / 100
         let normalizedSignal = max(0.22, min(CGFloat(device.signalBars) / 4, 1))
-        let radius = (size * 0.42) * (1.0 - normalizedSignal * 0.72) + (CGFloat(index % 3) * 8) + jitter * 12
+        let radius = max(0, (size * 0.42) * (1.0 - normalizedSignal * 0.72) + (CGFloat(index % 3) * 8) + jitter * 12)
 
         return CGPoint(
             x: CGFloat(cos(angle)) * radius,
@@ -422,7 +554,7 @@ private struct RadarSweepShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
         let center = CGPoint(x: rect.midX, y: rect.midY)
-        let radius = min(rect.width, rect.height) / 2
+        let radius = max(0, min(rect.width, rect.height) / 2)
 
         path.move(to: center)
         path.addArc(

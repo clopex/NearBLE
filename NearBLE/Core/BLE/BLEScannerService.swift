@@ -220,19 +220,55 @@ final class BLEScannerService: NSObject, ObservableObject {
             await MainActor.run {
                 guard let self else { return }
                 self.pendingPublishTask = nil
-                self.devices = self.cachedDevices.values.sorted { lhs, rhs in
-                    if lhs.stableSortRSSI == rhs.stableSortRSSI {
-                        if lhs.discoveryOrder == rhs.discoveryOrder {
-                            return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
-                        }
-
-                        return lhs.discoveryOrder < rhs.discoveryOrder
-                    }
-
-                    return lhs.stableSortRSSI > rhs.stableSortRSSI
-                }
+                self.devices = self.makeDisplayDevices(from: self.cachedDevices.values)
             }
         }
+    }
+
+    private func makeDisplayDevices(from source: Dictionary<UUID, BLEDevice>.Values) -> [BLEDevice] {
+        var deduplicatedDevices: [BLEDevice] = []
+        var dedupeIndexByKey: [String: Int] = [:]
+
+        for device in source {
+            guard let dedupeKey = displayDedupeKey(for: device) else {
+                deduplicatedDevices.append(device)
+                continue
+            }
+
+            if let existingIndex = dedupeIndexByKey[dedupeKey] {
+                deduplicatedDevices[existingIndex] = deduplicatedDevices[existingIndex].mergedForDisplay(with: device)
+            } else {
+                dedupeIndexByKey[dedupeKey] = deduplicatedDevices.count
+                deduplicatedDevices.append(device)
+            }
+        }
+
+        return deduplicatedDevices.sorted(by: deviceSort(lhs:rhs:))
+    }
+
+    private func displayDedupeKey(for device: BLEDevice) -> String? {
+        if let manufacturerDataHex = device.manufacturerDataHex?.lowercased(), !manufacturerDataHex.isEmpty {
+            return "mfg|\(device.normalizedDisplayName ?? "_")|\(manufacturerDataHex)"
+        }
+
+        if !device.advertisedServices.isEmpty, let normalizedDisplayName = device.normalizedDisplayName {
+            let servicesKey = device.advertisedServices.sorted().joined(separator: "|").lowercased()
+            return "svc|\(normalizedDisplayName)|\(servicesKey)"
+        }
+
+        return nil
+    }
+
+    private func deviceSort(lhs: BLEDevice, rhs: BLEDevice) -> Bool {
+        if lhs.stableSortRSSI == rhs.stableSortRSSI {
+            if lhs.discoveryOrder == rhs.discoveryOrder {
+                return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+            }
+
+            return lhs.discoveryOrder < rhs.discoveryOrder
+        }
+
+        return lhs.stableSortRSSI > rhs.stableSortRSSI
     }
 
     private func updateAvailability(for authorization: CBManagerAuthorization, state: CBManagerState) {
